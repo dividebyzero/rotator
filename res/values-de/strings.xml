@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="app_name">Rotator</string>
+    <string name="rotator_active">Rotator Aktiviert</string>
+	<string name="rotate_left">"Links"</string>
+	<string name="rotate_right">"Rechts"</string>
+	<string name="exit">"Beenden"</string>
+	
+
+	
+	
+</resources>
