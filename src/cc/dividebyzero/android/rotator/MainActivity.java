@@ -6,6 +6,7 @@ import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.provider.Settings.SettingNotFoundException;
 import android.util.Log;
@@ -13,12 +14,15 @@ import android.view.Surface;
 
 public class MainActivity extends Activity {
 
-    private static final String ACTION_ROTATE_LEFT  = "ROTATE_LEFT";
-    private static final String ACTION_ROTATE_RIGHT = "ROTATE_RIGHT";
-    private static final String ACTION_EXIT         = "EXIT";
-    private static final int    ID                  = 0xfCAFFE;
-    private static final String LOG_TAG             = "ROTATOR";
+    private static final String ACTION_ROTATE_LEFT        = "ROTATE_LEFT";
+    private static final String ACTION_ROTATE_RIGHT       = "ROTATE_RIGHT";
+    private static final String ACTION_EXIT               = "EXIT";
+    private static final int    ID                        = 0xfCAFFE;
+    private static final String LOG_TAG                   = "ROTATOR";
     NotificationManager         notificationManager;
+
+    private static final String ORIGINAL_ROTATION_SETTING = "orig_setting";
+    private static final String PREFERENCES               = "PREFERENCES";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -30,6 +34,25 @@ public class MainActivity extends Activity {
 
 
 
+
+
+    private void disableAutoRotate() {
+        final SharedPreferences prefs = getSharedPreferences(PREFERENCES,Context.MODE_PRIVATE);
+        final int deviceAutoRotate = readSystemSettings(android.provider.Settings.System.ACCELEROMETER_ROTATION,Integer.MIN_VALUE);
+        prefs.edit().putInt(ORIGINAL_ROTATION_SETTING,deviceAutoRotate).commit();
+
+        writeSystemSettings(android.provider.Settings.System.ACCELEROMETER_ROTATION,0);
+    }
+
+
+    private void restoreAutoRotate() {
+        final SharedPreferences prefs = getSharedPreferences(PREFERENCES,Context.MODE_PRIVATE);
+        final int deviceAutoRotate = prefs.getInt(ORIGINAL_ROTATION_SETTING,Integer.MIN_VALUE);
+        if (deviceAutoRotate != Integer.MIN_VALUE)
+        {
+            writeSystemSettings(android.provider.Settings.System.ACCELEROMETER_ROTATION,deviceAutoRotate);
+        }
+    }
 
 
     private void handleIntent(final Intent intent) {
@@ -55,9 +78,11 @@ public class MainActivity extends Activity {
 
         } else if (ACTION_EXIT.equals(action))
         {
+            restoreAutoRotate();
             removeNotification();
         } else
         {
+            disableAutoRotate();
             showNotification();
         }
 
@@ -68,7 +93,7 @@ public class MainActivity extends Activity {
 
     private void rotateLeft() throws SettingNotFoundException {
 
-        final int currentRotation = android.provider.Settings.System.getInt(getContentResolver(),android.provider.Settings.System.USER_ROTATION);
+        final int currentRotation = readSystemSettings(android.provider.Settings.System.USER_ROTATION,Integer.MIN_VALUE);
         int rotation = Surface.ROTATION_0;
         if (currentRotation == Surface.ROTATION_0)
         {
@@ -84,12 +109,12 @@ public class MainActivity extends Activity {
             rotation = Surface.ROTATION_180;
         }
 
-        android.provider.Settings.System.putInt(getContentResolver(),android.provider.Settings.System.USER_ROTATION,rotation);
+        writeSystemSettings(android.provider.Settings.System.USER_ROTATION,rotation);
     }
 
     private void rotateRight() throws SettingNotFoundException {
 
-        final int currentRotation = android.provider.Settings.System.getInt(getContentResolver(),android.provider.Settings.System.USER_ROTATION);
+        final int currentRotation = readSystemSettings(android.provider.Settings.System.USER_ROTATION,Integer.MIN_VALUE);
         int rotation = Surface.ROTATION_0;
 
         if (currentRotation == Surface.ROTATION_0)
@@ -106,7 +131,7 @@ public class MainActivity extends Activity {
             rotation = Surface.ROTATION_0;
         }
 
-        android.provider.Settings.System.putInt(getContentResolver(),android.provider.Settings.System.USER_ROTATION,rotation);
+        writeSystemSettings(android.provider.Settings.System.USER_ROTATION,rotation);
     }
 
 
@@ -116,7 +141,26 @@ public class MainActivity extends Activity {
     }
 
 
+    private int readSystemSettings(final String which, final int defaultValue) {
+        try
+        {
+            return android.provider.Settings.System.getInt(getContentResolver(),which);
+        } catch (SettingNotFoundException e)
+        {
+            return defaultValue;
+        }
+    }
 
+
+    private boolean writeSystemSettings(final String which, final int value) {
+        try
+        {
+            return android.provider.Settings.System.putInt(getContentResolver(),which,value);
+        } catch (Exception e)
+        {
+            return false;
+        }
+    }
 
 
     private void showNotification() {
@@ -134,15 +178,15 @@ public class MainActivity extends Activity {
         PendingIntent pi_exitIntent = PendingIntent.getActivity(this,0,exitIntent,0);
 
         Notification.Builder builder = new Notification.Builder(this);
-        builder.setContentTitle("Rotator Active")
+        builder.setContentTitle(getString(R.string.rotator_active))
                         // Notification title
                         .setContentText("")
                         // you can put subject line.
                         .setSmallIcon(android.R.drawable.ic_dialog_info)
                         // Set your notification icon here.
-                        .addAction(android.R.drawable.ic_menu_rotate,"rotate Left",pi_rotateLeftIntent)
-                        .addAction(android.R.drawable.ic_menu_delete,"exit",pi_exitIntent)
-                        .addAction(android.R.drawable.ic_menu_rotate,"rotate Right",pi_rotateRightIntent);
+                        .addAction(android.R.drawable.ic_menu_rotate,getString(R.string.rotate_left),pi_rotateLeftIntent)
+                        .addAction(android.R.drawable.ic_menu_delete,getString(R.string.exit),pi_exitIntent)
+                        .addAction(android.R.drawable.ic_menu_rotate,getString(R.string.rotate_right),pi_rotateRightIntent);
 
 
 
