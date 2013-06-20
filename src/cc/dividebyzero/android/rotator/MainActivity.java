@@ -1,7 +1,11 @@
 package cc.dividebyzero.android.rotator;
 
 import android.app.Activity;
+
+
 import android.app.Notification;
+import android.support.v4.app.NotificationCompat;
+import android.support.v4.app.NotificationCompat.Builder;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Context;
@@ -10,7 +14,10 @@ import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.provider.Settings.SettingNotFoundException;
 import android.util.Log;
+import android.view.KeyEvent;
 import android.view.Surface;
+import android.view.Window;
+import android.widget.ImageView;
 
 public class MainActivity extends Activity {
 
@@ -19,15 +26,23 @@ public class MainActivity extends Activity {
     private static final String ACTION_EXIT               = "EXIT";
     private static final int    ID                        = 0xfCAFFE;
     private static final String LOG_TAG                   = "ROTATOR";
-    NotificationManager         notificationManager;
+    private static final String ACTION_SHOW               = "SHOW_ACTIVITY";
+    NotificationManager notificationManager;
 
     private static final String ORIGINAL_ROTATION_SETTING = "orig_setting";
     private static final String PREFERENCES               = "PREFERENCES";
+    private ImageView ivLeft;
+    private ImageView ivRight;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        requestWindowFeature(Window.FEATURE_NO_TITLE);
+        setContentView(R.layout.main);
+
+        ivLeft  = (ImageView)findViewById(R.id.iv_left);
+        ivRight = (ImageView)findViewById(R.id.iv_right);
         handleIntent(getIntent());
 
     }
@@ -66,6 +81,8 @@ public class MainActivity extends Activity {
             {
                 Log.e(LOG_TAG,"rotateLeft failed",e);
             }
+            finish();
+
         } else if (ACTION_ROTATE_RIGHT.equals(action))
         {
             try
@@ -76,19 +93,74 @@ public class MainActivity extends Activity {
                 Log.e(LOG_TAG,"rotateRight failed",e);
             }
 
+            finish();
+
         } else if (ACTION_EXIT.equals(action))
         {
             restoreAutoRotate();
             removeNotification();
+            finish();
+
+        } else if (ACTION_SHOW.equals(action))
+        {
+            //essentially, do nothing.
         } else
         {
             disableAutoRotate();
             showNotification();
+            finish();
         }
 
-        finish();
+
     }
 
+
+    @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+
+        if(KeyEvent.KEYCODE_DPAD_LEFT==event.getKeyCode()){
+
+            ivLeft.setImageResource(R.drawable.dpad_left_pressed);
+            try
+            {
+                
+                rotateLeft();
+            } catch (SettingNotFoundException e)
+            {
+                Log.e(LOG_TAG,"rotateLeft failed",e);
+            }
+
+            return true;
+        }else if(KeyEvent.KEYCODE_DPAD_RIGHT==event.getKeyCode()){
+            ivRight.setImageResource(R.drawable.dpad_right_pressed);
+            try
+            {
+                rotateRight();
+            } catch (SettingNotFoundException e)
+            {
+                Log.e(LOG_TAG,"rotateRight failed",e);
+            }
+
+            return true;
+        }
+
+        return super.onKeyDown(keyCode, event);
+    }
+
+
+    @Override
+    public boolean onKeyUp(int keyCode, KeyEvent event) {
+
+        if(KeyEvent.KEYCODE_DPAD_LEFT==event.getKeyCode()){
+            ivLeft.setImageResource(R.drawable.dpad_left);
+            return true;
+        }else if(KeyEvent.KEYCODE_DPAD_RIGHT==event.getKeyCode()){
+            ivRight.setImageResource(R.drawable.dpad_right);
+            return true;
+        }
+
+        return super.onKeyDown(keyCode, event);
+    }
 
 
     private void rotateLeft() throws SettingNotFoundException {
@@ -173,11 +245,14 @@ public class MainActivity extends Activity {
         Intent exitIntent = new Intent(getApplicationContext(),MainActivity.class);
         exitIntent.setAction(ACTION_EXIT);
 
+        Intent showIntent = new Intent(getApplicationContext(),MainActivity.class);
+        showIntent.setAction(ACTION_SHOW);
+
         PendingIntent pi_rotateLeftIntent = PendingIntent.getActivity(this,0,rotateLeftIntent,0);
         PendingIntent pi_rotateRightIntent = PendingIntent.getActivity(this,0,rotateRightIntent,0);
         PendingIntent pi_exitIntent = PendingIntent.getActivity(this,0,exitIntent,0);
 
-        Notification.Builder builder = new Notification.Builder(this);
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(this);
         builder.setContentTitle(getString(R.string.rotator_active))
                         // Notification title
                         .setContentText("")
@@ -190,11 +265,15 @@ public class MainActivity extends Activity {
 
 
 
+
+        builder.setContentIntent(PendingIntent.getActivity(this,0,showIntent,0));
         // Now create the Big text notification.
-        Notification notification = new Notification.BigTextStyle(builder)
+        Notification notification = new NotificationCompat.BigTextStyle(builder)
                         .build();
 
         notification.flags |= Notification.FLAG_ONGOING_EVENT;
+
+
 
         notificationManager.notify(ID,notification);
     }
